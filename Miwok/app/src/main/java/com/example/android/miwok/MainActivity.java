@@ -34,7 +34,7 @@ public class MainActivity extends AppCompatActivity {
         TextView numbers = (TextView)findViewById(R.id.numbers);
 
         //Set a clicklistener on that View
-        numbers.setOnClickListener(new View.OnClickListener() {
+        numbers.setOnClickListener( new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 //Create a new intent to open the {@link NumbersActivity}
