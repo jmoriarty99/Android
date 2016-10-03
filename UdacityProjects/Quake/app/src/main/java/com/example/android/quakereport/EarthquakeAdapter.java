@@ -77,7 +77,7 @@ public class EarthquakeAdapter extends ArrayAdapter<Earthquake> {
         return ContextCompat.getColor(getContext(), magnitudeColorResourceId);
     }
 
-    public EarthquakeAdapter(Context context, List<Earthquake> earthquakes) {
+    public EarthquakeAdapter(Context context, int earthquake_list_item, List<Earthquake> earthquakes) {
         super(context, 0, earthquakes);
     }
 
