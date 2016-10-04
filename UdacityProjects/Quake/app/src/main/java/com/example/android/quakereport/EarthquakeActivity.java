@@ -17,166 +17,182 @@ package com.example.android.quakereport;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.LoaderManager;
-import android.support.v4.content.AsyncTaskLoader;
+
 import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 
-import java.io.IOException;
-import java.net.URL;
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.common.api.GoogleApiClient;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class EarthquakeActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<List<Earthquake>> {
 
-    public static final String LOG_TAG = EarthquakeActivity.class.getName();
-
-    /** URL for earthquake data from the USGS dataset */
+    /**
+     * URL for earthquake data from the USGS dataset
+     */
     private static final String USGS_REQUEST_URL =
             "http://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&eventtype=earthquake&orderby=time&minmag=6&limit=10";
+
+    /**
+     * Constant value for the earthquake loader ID. We can choose any integer.
+     * This really only comes into play when you use multiple loaders.
+     */
+    private static final int EARTHQUAKE_LOADER_ID = 1;
+
+    //Adapter for the list of earthquakes
+    private EarthquakeAdapter mAdapter;
+
+    //TextView that is diplayed when the list is empty
+    private TextView mEmptyStateTextView;
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.earthquake_activity);
 
-        getSupportLoaderManager().initLoader(0, null, this);
+        //Find a reference to the {@link ListView} in the layout
+        ListView earthquakeListView = (ListView) findViewById(R.id.list);
+
+        mEmptyStateTextView = (TextView) findViewById(R.id.empty_view);
+        earthquakeListView.setEmptyView(mEmptyStateTextView);
+
+        //Create a new adapter that takes an empty list of earthquakes as input
+        mAdapter = new EarthquakeAdapter(this, new ArrayList<Earthquake>());
+
+        //Set the adapter on the {@link ListView}
+        //so the list can be populated in the user interface
+        earthquakeListView.setAdapter(mAdapter);
+
+        //Set an item click listener on the ListView, which sends an intent to a web browser
+        //to open a website with more information about the selected earthquake.
+        earthquakeListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                //Find the current earthquake that was clicked on
+                Earthquake currentEarthquake = mAdapter.getItem(position);
+
+                //Convert the String Url into a URI object (to pass inot the Intent constructor)
+                Uri earthquakeUri = Uri.parse(currentEarthquake.getUrl());
+
+                //Create a new intent to view the earthquake URI
+                Intent websiteIntent = new Intent(Intent.ACTION_VIEW, earthquakeUri);
+
+                //Send the intent to launch a new activity
+                startActivity(websiteIntent);
+            }
+        });
+
+        //Get a reference to the ConnectivityManager to cheek state of network connectivity
+        ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        //Get details on the currently active default data network
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+
+        //If there is a network connection, fetch data
+        if (networkInfo != null && networkInfo.isConnected()) {
+            //Get a reference to the LoaderManager, in order to interact with loaders
+            LoaderManager loaderManager = getLoaderManager();
+
+            loaderManager.initLoader(EARTHQUAKE_LOADER_ID, null, this);
+        } else {
+
+            View loadingIndicator = findViewById(R.id.loading_indicator);
+            loadingIndicator.setVisibility(View.GONE);
+
+            mEmptyStateTextView.setText(R.string.no_internet_connection);
+        }
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
 
     @Override
-    public Loader<List<Earthquake>> onCreateLoader(int id, Bundle args) {
+    public Loader<List<Earthquake>> onCreateLoader(int i, Bundle bundle) {
+        //Create a new loader for the given URL
         return new EarthquakeLoader(this, USGS_REQUEST_URL);
     }
 
     @Override
-    public void onLoadFinished(Loader<List<Earthquake>> loader, final List<Earthquake> earthquakes) {
+    public void onLoadFinished(Loader<List<Earthquake>> loader, List<Earthquake> earthquakes) {
+        //Hide loading indicator because the data has been loaded
+        View loadingIndicator = findViewById(R.id.loading_indicator);
+        loadingIndicator.setVisibility(View.GONE);
 
-        final ListView earthquakeListView = (ListView) findViewById(R.id.list);
+        //Set empty state text to display "No Earthquakes found,"
+        mEmptyStateTextView.setText(R.string.no_earthquakes);
 
-        earthquakeListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        //Clear the adapter of previous earthquake data
+        mAdapter.clear();
 
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String url = earthquakes.get(position).getUrl();
-                Intent i = new Intent(Intent.ACTION_VIEW);
-                i.setData(Uri.parse(url));
-                startActivity(i);
-
-            }
-        });
-
-        EarthquakeAdapter adapter = new EarthquakeAdapter(getApplicationContext(), R.layout.earthquake_list_item, earthquakes);
-
-        earthquakeListView.setAdapter(adapter);
-
+        //If there is a valid list of {@link Earthquake}s, then add them to the adapter's
+        //data set. This will trigger the ListView to update.
+        if (earthquakes != null && earthquakes.isEmpty()) {
+            mAdapter.addAll(earthquakes);
+        }
     }
 
     @Override
     public void onLoaderReset(Loader<List<Earthquake>> loader) {
-
+        //Loader reset, so we can clear out existing data.
+        mAdapter.clear();
     }
 
 
-    public static class EarthquakeLoader extends AsyncTaskLoader<List<Earthquake>> {
+    @Override
+    public void onStart() {
+        super.onStart();
 
-        private String mUrl;
-        public EarthquakeLoader(Context context, String url) {
-            super(context);
-            mUrl = url;
-        }
-
-        @Override
-        public List<Earthquake> loadInBackground() {
-            return QueryUtils.extractEarthquakes(mUrl);
-        }
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client.connect();
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Earthquake Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app URL is correct.
+                Uri.parse("android-app://com.example.android.quakereport/http/host/path")
+        );
+        AppIndex.AppIndexApi.start(client, viewAction);
     }
 
+    @Override
+    public void onStop() {
+        super.onStop();
 
-
-
-
-//    private void updateUi(List earthquake) {
-////        ArrayList<Earthquake> earthquakes = QueryUtils.extractEarthquakes();
-//        List<Earthquake> earthquakes = QueryUtils.fetchEarthquakeData(USGS_REQUEST_URL);
-//
-//        // Find a reference to the {@link ListView} in the layout
-//        ListView earthquakeListView = (ListView) findViewById(R.id.list);
-//
-//        // Create a new {@link ArrayAdapter} of earthquakes
-//        final EarthquakeAdapter adapter = new EarthquakeAdapter(this, earthquakes);
-//
-//        // Set the adapter on the {@link ListView}
-//        // so the list can be populated in the user interface
-//        earthquakeListView.setAdapter(adapter);
-//
-//        earthquakeListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//            @Override
-//            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
-//
-//                //Find the current earthquake that was clicked on
-//                Earthquake currentEarthquake = adapter.getItem(position);
-//
-//                //Convert the String URL into URI object (to pass into the Intent constructor)
-//                Uri earthquakeUri = Uri.parse(currentEarthquake.getUrl());
-//
-//                //Create a new intent to view the earthquake URI
-//                Intent websiteIntent = new Intent(Intent.ACTION_VIEW, earthquakeUri);
-//
-//                //Send the intent to launch a new activity
-//                startActivity(websiteIntent);
-//            }
-//        });
-//    }
-//
-//    /**
-//     * {@link AsyncTask} to perform the network request on a background thread, and then
-//     * update the UI with the first earthquake in the response.
-//     */
-//    private class EarthquakeAsyncTask extends AsyncTask<String, Void, String> {
-//
-//        /**
-//         * This method is invoked (or called) on a background thread, so we can perform
-//         * long-running operations like making a network request.
-//         *
-//         * It is NOT okay to update the UI from a background thread, so we just return an
-//         * {@link Event} object as the result.
-//         */
-//        @Override
-//        protected String doInBackground(String... url) {
-//
-//            //Don't perform the request if there are no URLs, or the first URL is null.
-//            if (url.length < 1 || url[0] == null){
-//                return null;
-//            }
-//
-//            // Perform the HTTP request for earthquake data and process the response.
-//            List result = QueryUtils.fetchEarthquakeData(url[0]);
-//            return result;
-//        }
-//
-//        /**
-//         * This method is invoked on the main UI thread after the background work has been
-//         * completed.
-//         *
-//         * It IS ok to modify the UI within this method. We take the {@link Event} object
-//         * (which was returned from the doInBackground() method) and update the views on the screen.
-//         */
-//        @Override
-//        protected void onPostExecute(String result) {
-//            //If there is no result, do nothing.
-//            if (result == null) {
-//                return;
-//            }
-//
-//            updateUi(result);
-//        }
-//    }
-
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Earthquake Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app URL is correct.
+                Uri.parse("android-app://com.example.android.quakereport/http/host/path")
+        );
+        AppIndex.AppIndexApi.end(client, viewAction);
+        client.disconnect();
+    }
 }

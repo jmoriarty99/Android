@@ -23,66 +23,53 @@ import java.util.List;
 
 public class QueryUtils {
 
-    private static final String SAMPLE_JSON_RESPONSE = "http://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&eventtype=earthquake&orderby=time&minmag=6&limit=10";
-
 
     private QueryUtils() {
     }
 
-    public static ArrayList<Earthquake> fetchEarthquakeData(String requestUrl) {
-        // Create URL object
-        URL url = createUrl(requestUrl);
-
-        // Perform HTTP request to the URL and receive a JSON response back
-        String jsonResponse = null;
-        try {
-            jsonResponse = makeHttpRequest(url);
-        } catch (IOException e) {
-//            Log.e(LOG_TAG, "Error closing input stream", e);
+    //Parse the JSON
+    public static ArrayList<Earthquake> extractEarthquakes(String url) {
+        // If the JSON string is empty or null, then return early.
+        if (TextUtils.isEmpty(url)) {
+            return null;
         }
 
-        // Extract relevant fields from the JSON response and create an {@link Event} object
-        ArrayList<Earthquake> earthquake = extractEarthquakes(jsonResponse);
+        ArrayList<Earthquake> earthquakes = new ArrayList<>();
 
-        // Return the {@link Event}
-        return earthquake;
+        try {
+            JSONObject baseJsonResponse = new JSONObject(makeHttpRequest(createUrl(url)));
+            JSONArray earthquakeArray = baseJsonResponse.getJSONArray("features");
+
+            // If there are results in the features array
+            for(int i=0; i < earthquakeArray.length(); i++){
+                JSONObject currentEarthquake = earthquakeArray.getJSONObject(i);
+                JSONObject properties = currentEarthquake.getJSONObject("properties");
+
+                // Extract out the magnitude, place, time, and url
+                double magnitude = properties.getDouble("mag");
+                String place = properties.getString("place");
+                Long time = properties.getLong("time");
+                String url2 =properties.getString("url");
+
+                earthquakes.add(new Earthquake(magnitude, place, time, url2));
+
+            }
+
+
+        } catch (JSONException e) {
+//            Log.e(LOG_TAG, "Problem parsing the earthquake JSON results", e);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return earthquakes;
     }
-
-//    public static ArrayList<Earthquake> extractEarthquakes() {
-//
-//        ArrayList<Earthquake> earthquakes = new ArrayList<>();
-//
-//        try {
-//            JSONObject baseJsonResponse = new JSONObject(SAMPLE_JSON_RESPONSE);
-//            JSONArray earthquakeArray = baseJsonResponse.optJSONArray("features");
-//
-//
-//            for(int i=0; i < earthquakeArray.length(); i++){
-//                JSONObject currentEarthquake = earthquakeArray.getJSONObject(i);
-//                JSONObject properties = currentEarthquake.getJSONObject("properties");
-//
-//
-//                double magnitude = properties.getDouble("mag");
-//                String place = properties.getString("place");
-//                Long time = properties.getLong("time");
-//                String url =properties.getString("url");
-//
-//                earthquakes.add(new Earthquake(magnitude, place, time, url));
-//            }
-//
-//        } catch (JSONException e) {
-//            Log.e("QueryUtils", "Problem parsing the earthquake JSON results", e);
-//        }
-//
-//        return earthquakes;
-//    }
 
     private static URL createUrl(String stringUrl) {
         URL url = null;
         try {
             url = new URL(stringUrl);
         } catch (MalformedURLException e) {
-//            Log.e(LOG_TAG, "Error with creating URL ", e);
+           return null;
         }
         return url;
     }
@@ -146,42 +133,53 @@ public class QueryUtils {
         return output.toString();
     }
 
-    //Parse the JSON
-    public static ArrayList<Earthquake> extractEarthquakes(String earthquakeJSON) {
-        // If the JSON string is empty or null, then return early.
-        if (TextUtils.isEmpty(earthquakeJSON)) {
-            return null;
-        }
 
-        ArrayList<Earthquake> earthquakes = new ArrayList<>();
+    //    public static ArrayList<Earthquake> fetchEarthquakeData(String requestUrl) {
+//        // Create URL object
+//        URL url = createUrl(requestUrl);
+//
+//        // Perform HTTP request to the URL and receive a JSON response back
+//        String jsonResponse = null;
+//        try {
+//            jsonResponse = makeHttpRequest(url);
+//        } catch (IOException e) {
+////            Log.e(LOG_TAG, "Error closing input stream", e);
+//        }
+//
+//        // Extract relevant fields from the JSON response and create an {@link Event} object
+//        ArrayList<Earthquake> earthquake = extractEarthquakes(jsonResponse);
+//
+//        // Return the {@link Event}
+//        return earthquake;
+//    }
 
-        try {
-            JSONObject baseJsonResponse = new JSONObject(earthquakeJSON);
-            JSONArray earthquakeArray = baseJsonResponse.getJSONArray("features");
-
-            // If there are results in the features array
-            for(int i=0; i < earthquakeArray.length(); i++){
-                JSONObject currentEarthquake = earthquakeArray.getJSONObject(i);
-                JSONObject properties = currentEarthquake.getJSONObject("properties");
-
-                // Extract out the magnitude, place, time, and url
-                double magnitude = properties.getDouble("mag");
-                String place = properties.getString("place");
-                Long time = properties.getLong("time");
-                String url =properties.getString("url");
-
-                earthquakes.add(new Earthquake(magnitude, place, time, url));
-
-            }
-
-            // Create a new {@link Event} object
-            return earthquakes;
-
-        } catch (JSONException e) {
-//            Log.e(LOG_TAG, "Problem parsing the earthquake JSON results", e);
-        }
-        return null;
-    }
-
+//    public static ArrayList<Earthquake> extractEarthquakes() {
+//
+//        ArrayList<Earthquake> earthquakes = new ArrayList<>();
+//
+//        try {
+//            JSONObject baseJsonResponse = new JSONObject(SAMPLE_JSON_RESPONSE);
+//            JSONArray earthquakeArray = baseJsonResponse.optJSONArray("features");
+//
+//
+//            for(int i=0; i < earthquakeArray.length(); i++){
+//                JSONObject currentEarthquake = earthquakeArray.getJSONObject(i);
+//                JSONObject properties = currentEarthquake.getJSONObject("properties");
+//
+//
+//                double magnitude = properties.getDouble("mag");
+//                String place = properties.getString("place");
+//                Long time = properties.getLong("time");
+//                String url =properties.getString("url");
+//
+//                earthquakes.add(new Earthquake(magnitude, place, time, url));
+//            }
+//
+//        } catch (JSONException e) {
+//            Log.e("QueryUtils", "Problem parsing the earthquake JSON results", e);
+//        }
+//
+//        return earthquakes;
+//    }
 }
 

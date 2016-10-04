@@ -21,6 +21,10 @@ public class EarthquakeAdapter extends ArrayAdapter<Earthquake> {
 
     private static final String LOCATION_SEPARATOR = " of ";
 
+    public EarthquakeAdapter(Context context, List<Earthquake> earthquakes){
+        super(context, 0, earthquakes);
+    }
+
     private String formateDate(Date dateObject) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("LLL dd, yyyy");
         return dateFormat.format(dateObject);
