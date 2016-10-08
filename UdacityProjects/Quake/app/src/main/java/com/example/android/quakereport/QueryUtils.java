@@ -27,8 +27,30 @@ public class QueryUtils {
     private QueryUtils() {
     }
 
+    /**
+     * Query the USGS dataset and return a list of {@link Earthquake} objects.
+     */
+    public static List<Earthquake> fetchEarthquakeData(String requestUrl) {
+        // Create URL object
+        URL url = createUrl(requestUrl);
+
+        // Perform HTTP request to the URL and receive a JSON response back
+        String jsonResponse = null;
+        try {
+            jsonResponse = makeHttpRequest(url);
+        } catch (IOException e) {
+//            Log.e(LOG_TAG, "Problem making the HTTP request.", e);
+        }
+
+        // Extract relevant fields from the JSON response and create a list of {@link Earthquake}s
+        List<Earthquake> earthquakes = extractEarthquakes(jsonResponse);
+
+        // Return the list of {@link Earthquake}s
+        return earthquakes;
+    }
+
     //Parse the JSON
-    public static ArrayList<Earthquake> extractEarthquakes(String url) {
+    public static List<Earthquake> extractEarthquakes(String url) {
         // If the JSON string is empty or null, then return early.
         if (TextUtils.isEmpty(url)) {
             return null;
@@ -37,7 +59,7 @@ public class QueryUtils {
         ArrayList<Earthquake> earthquakes = new ArrayList<>();
 
         try {
-            JSONObject baseJsonResponse = new JSONObject(makeHttpRequest(createUrl(url)));
+            JSONObject baseJsonResponse = new JSONObject(url);
             JSONArray earthquakeArray = baseJsonResponse.getJSONArray("features");
 
             // If there are results in the features array
@@ -58,8 +80,6 @@ public class QueryUtils {
 
         } catch (JSONException e) {
 //            Log.e(LOG_TAG, "Problem parsing the earthquake JSON results", e);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
         return earthquakes;
     }
